@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth, db } from "@/firebaseConfig";
-// adjust if your firebase setup file is elsewhere
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
+import { auth, db } from "@/firebaseConfig"; 
 import { doc, getDoc } from "firebase/firestore";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -41,7 +40,21 @@ export default function StaffLoginPage() {
                 setError("An unknown error occurred");
             }
         }
+    };
 
+    // Forgot password handler
+    const handleForgotPassword = async () => {
+        if (!email) {
+            setError("Please enter your email first.");
+            return;
+        }
+        try {
+            await sendPasswordResetEmail(auth, email);
+            alert("Password reset email sent! Please check your inbox.");
+        } catch (err) {
+            console.error(err);
+            setError("Failed to send reset email. Please check the email entered.");
+        }
     };
 
     return (
@@ -78,9 +91,9 @@ export default function StaffLoginPage() {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             className="w-full px-3 py-2 border rounded-md 
-                         bg-white dark:bg-gray-700 
-                         border-gray-300 dark:border-gray-600 
-                         text-gray-900 dark:text-white"
+                                bg-white dark:bg-gray-700 
+                                border-gray-300 dark:border-gray-600 
+                                text-gray-900 dark:text-white"
                             required
                         />
                     </div>
@@ -94,9 +107,9 @@ export default function StaffLoginPage() {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             className="w-full px-3 py-2 border rounded-md 
-                         bg-white dark:bg-gray-700 
-                         border-gray-300 dark:border-gray-600 
-                         text-gray-900 dark:text-white"
+                                bg-white dark:bg-gray-700 
+                                border-gray-300 dark:border-gray-600 
+                                text-gray-900 dark:text-white"
                             required
                         />
                     </div>
@@ -108,6 +121,17 @@ export default function StaffLoginPage() {
                         Log In
                     </button>
                 </form>
+
+                {/* Forgot password link */}
+                <div className="mt-4 text-sm text-center">
+                    <button
+                        type="button"
+                        onClick={handleForgotPassword}
+                        className="text-green-700 dark:text-green-400 underline"
+                    >
+                        Forgot password?
+                    </button>
+                </div>
             </div>
         </div>
     );
