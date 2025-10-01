@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
-import { auth, db } from "@/firebaseConfig"; 
+import { auth, db } from "@/firebaseConfig";
 import { doc, getDoc } from "firebase/firestore";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -26,7 +26,9 @@ export default function StaffLoginPage() {
             if (userDoc.exists()) {
                 const userData = userDoc.data();
                 if (userData.role === "staff" || userData.role === "admin") {
-                    router.push("/dashboard");
+                    router.push("/staff/dashboard");
+                } else if (userData.role === "parent") {
+                    router.push("/parent/dashboard");
                 } else {
                     setError("Access denied. This account is not a staff user.");
                 }
@@ -116,7 +118,7 @@ export default function StaffLoginPage() {
 
                     <button
                         type="submit"
-                        className="w-full bg-green-700 hover:bg-green-800 text-white py-2 rounded-md transition"
+                        className="w-full bg-green-700 hover:bg-green-800 text-white py-2 rounded-md transition cursor-pointer"
                     >
                         Log In
                     </button>
@@ -127,7 +129,7 @@ export default function StaffLoginPage() {
                     <button
                         type="button"
                         onClick={handleForgotPassword}
-                        className="text-green-700 dark:text-green-400 underline"
+                        className="text-green-700 dark:text-green-400 underline cursor-pointer"
                     >
                         Forgot password?
                     </button>
