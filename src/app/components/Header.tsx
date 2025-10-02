@@ -13,6 +13,7 @@ import {
   WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline";
 import { FaBus } from "react-icons/fa";
+import Link from "next/link";
 
 export default function Header() {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
@@ -64,12 +65,11 @@ export default function Header() {
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex space-x-8 items-center ml-auto">
-          <a
-            href="/"
+          <Link href="/"
             className="text-sm font-medium text-gray-700 hover:text-[#008F32] transition-colors duration-300"
           >
             Home
-          </a>
+          </Link>
 
           {/* Camps Dropdown */}
           <div className="relative">
@@ -106,12 +106,12 @@ export default function Header() {
                       { name: "Holiday All-Ages Events", slug: "/camps/holiday" },
                     ].map((item) => (
                       <li key={item.name}>
-                        <a
+                        <Link
                           href={item.slug}
                           className="block py-2 px-2 text-sm text-gray-800 hover:text-primary hover:bg-gray-100 rounded-md transition-colors duration-200"
                         >
                           {item.name}
-                        </a>
+                        </Link>
                       </li>
                     ))}
                   </ul>
@@ -128,12 +128,12 @@ export default function Header() {
                       { name: "Gift Certificates", slug: "/gift-certificates" },
                     ].map((item) => (
                       <li key={item.name}>
-                        <a
+                        <Link
                           href={item.slug}
                           className="block py-2 text-sm text-gray-800 hover:text-primary hover:bg-gray-100 rounded-md transition-colors duration-200"
                         >
                           {item.name}
-                        </a>
+                        </Link>
                       </li>
                     ))}
                   </ul>
@@ -142,12 +142,12 @@ export default function Header() {
             )}
           </div>
 
-          <a
+          <Link
             href="/design-build"
             className="text-sm font-medium text-gray-700 hover:text-[#008F32] transition-colors duration-300"
           >
             Design & Build
-          </a>
+          </Link>
 
           {/* Educator Programs Dropdown */}
           <div className="relative">
@@ -200,7 +200,7 @@ export default function Header() {
                       key={item.name}
                       className="flex items-start space-x-3 p-2 rounded-md hover:bg-gray-100 transition-colors duration-200"
                     >
-                      <a
+                      <Link
                         href={item.slug}
                         className="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-100 transition-colors duration-200"
                       >
@@ -211,7 +211,7 @@ export default function Header() {
                           </p>
                           <p className="text-xs text-gray-500">{item.desc}</p>
                         </div>
-                      </a>
+                      </Link>
                     </li>
                   ))}
                 </ul>
@@ -219,18 +219,18 @@ export default function Header() {
             )}
           </div>
 
-          <a
+          <Link
             href="/about"
             className="text-sm font-medium text-gray-700 hover:text-[#008F32] transition-colors duration-300"
           >
             About
-          </a>
-          <a
+          </Link>
+          <Link
             href="/contact"
             className="text-sm font-medium text-gray-700 hover:text-[#008F32] transition-colors duration-300"
           >
             Contact
-          </a>
+          </Link>
         </nav>
       </div>
 
@@ -262,12 +262,12 @@ export default function Header() {
         </div>
 
         <nav className="px-6 py-4 space-y-1">
-          <a
+          <Link
             href="/"
             className="block text-sm font-medium text-gray-700 hover:text-[#008F32] py-3 border-b border-gray-100"
           >
             Home
-          </a>
+          </Link>
 
           {/* Mobile expandable Camps */}
           <div className="border-b border-gray-100">
@@ -295,24 +295,24 @@ export default function Header() {
                   { name: "Holiday All-Ages Events", slug: "/camps/holiday" },
                 ].map((item) => (
                   <li key={item.name}>
-                    <a
+                    <Link
                       href={item.slug}
                       className="block text-sm text-gray-600 hover:text-[#008F32] py-1.5"
                     >
                       {item.name}
-                    </a>
+                    </Link>
                   </li>
                 ))}
               </ul>
             )}
           </div>
 
-          <a
+          <Link
             href="/design-build"
             className="block text-sm font-medium text-gray-700 hover:text-[#008F32] py-3 border-b border-gray-100"
           >
             Design & Build
-          </a>
+          </Link>
 
           {/* Mobile expandable Educator Programs */}
           <div className="border-b border-gray-100">
@@ -339,30 +339,30 @@ export default function Header() {
                   { name: "Curriculum", slug: "/curriculum" },
                 ].map((item) => (
                   <li key={item.name}>
-                    <a
+                    <Link
                       href={item.slug}
                       className="block text-sm text-gray-600 hover:text-[#008F32] py-1.5"
                     >
                       {item.name}
-                    </a>
+                    </Link>
                   </li>
                 ))}
               </ul>
             )}
           </div>
 
-          <a
+          <Link
             href="/about"
             className="block text-sm font-medium text-gray-700 hover:text-[#008F32] py-3 border-b border-gray-100"
           >
             About
-          </a>
-          <a
+          </Link>
+          <Link
             href="/contact"
             className="block text-sm font-medium text-gray-700 hover:text-[#008F32] py-3"
           >
             Contact
-          </a>
+          </Link>
         </nav>
       </div>
 

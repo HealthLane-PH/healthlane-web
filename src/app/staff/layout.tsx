@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
-import { signOut } from "firebase/auth";
+import { signOut, User } from "firebase/auth";   // 👈 import User type
 import { auth, db } from "@/firebaseConfig";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -20,8 +20,10 @@ const menuItems = [
 export default function StaffLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const router = useRouter();
-    const [user, setUser] = useState<any>(null);
-    const [userData, setUserData] = useState<any>(null);
+
+    // 👇 typed state properly
+    const [user, setUser] = useState<User | null>(null);
+    const [userData, setUserData] = useState<Record<string, any> | null>(null);
 
     useEffect(() => {
         const unsubscribe = auth.onAuthStateChanged(async (u) => {
@@ -64,8 +66,8 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
                                 key={item.name}
                                 href={item.path}
                                 className={`flex items-center space-x-2 px-3 py-2 rounded-md transition ${pathname === item.path
-                                        ? "bg-gray-700 text-white"
-                                        : "text-gray-300 hover:bg-gray-600"
+                                    ? "bg-gray-700 text-white"
+                                    : "text-gray-300 hover:bg-gray-600"
                                     }`}
                             >
                                 <span>{item.icon}</span>

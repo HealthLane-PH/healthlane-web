@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { db } from "../firebaseConfig";
 import { collection, getDocs } from "firebase/firestore";
+import Image from "next/image";
 
 interface UserData {
   id: string;
@@ -64,7 +65,7 @@ export default function Page() {
                 <p className="text-sm text-gray-600">Provider: {user.provider}</p>
               )}
               {user.photoURL && (
-                <img
+                <Image
                   src={user.photoURL}
                   alt="User avatar"
                   className="w-12 h-12 rounded-full mt-2"
