@@ -15,6 +15,8 @@ import {
 import { FaBus } from "react-icons/fa";
 import Link from "next/link";
 import Image from "next/image";
+import { FaFacebookF, FaInstagram, FaTiktok } from "react-icons/fa";
+
 
 export default function Header() {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
@@ -23,15 +25,6 @@ export default function Header() {
   const [mobileDropdown, setMobileDropdown] = useState<string | null>(null);
 
   let closeTimeout: NodeJS.Timeout;
-
-  const openMenu = (menu: string) => {
-    clearTimeout(closeTimeout);
-    setOpenDropdown(menu);
-  };
-
-  const closeMenu = () => {
-    closeTimeout = setTimeout(() => setOpenDropdown(null), 150);
-  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -248,15 +241,15 @@ export default function Header() {
 
       {/* Mobile Drawer */}
       <div
-        className={`fixed top-0 left-0 h-full w-64 bg-white shadow-lg z-50 transform transition-transform duration-300 ${mobileOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed top-0 left-0 h-full w-84 bg-white shadow-lg z-50 transform transition-transform duration-300 ${mobileOpen ? "translate-x-0" : "-translate-x-full"
           }`}
       >
         <div className="flex items-center justify-between px-6 h-16 border-b border-gray-200">
           <Image
             src="/images/bitspace-logo-green.png" // ✅ root-relative path
             alt="BitSpace Logo"
-            width={160}  // ✅ must specify width
-            height={40}  // ✅ must specify height
+            width={160}
+            height={40}
             className="h-10 w-auto"
             priority
           />
@@ -291,7 +284,7 @@ export default function Header() {
               />
             </button>
             {mobileDropdown === "camps" && (
-              <ul className="ml-3 mb-2 space-y-1">
+              <ul className="ml-3 mb-2 space-y-0">
                 {[
                   { name: "Day Off Camp", slug: "/camps/day-off" },
                   { name: "Summer Camp", slug: "/camps/summer-camp" },
@@ -301,10 +294,47 @@ export default function Header() {
                   { name: "Open Shop", slug: "/camps/open-shop" },
                   { name: "Holiday All-Ages Events", slug: "/camps/holiday" },
                 ].map((item) => (
-                  <li key={item.name}>
+                  <li
+                    key={item.name}
+                    className="border-b border-gray-100 last:border-none"
+                  >
                     <Link
                       href={item.slug}
-                      className="block text-sm text-gray-600 hover:text-[#008F32] py-1.5"
+                      className="block text-sm text-gray-600 hover:text-[#008F32] py-2.5"
+                    >
+                      {item.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+
+            )}
+          </div>
+
+          {/* Mobile expandable Shop */}
+          <div className="border-b border-gray-100">
+            <button
+              className="flex justify-between w-full text-sm font-medium text-gray-700 hover:text-[#008F32] py-3"
+              onClick={() =>
+                setMobileDropdown(mobileDropdown === "shop" ? null : "shop")
+              }
+            >
+              Shop
+              <ChevronDownIcon
+                className={`ml-2 h-4 w-4 transition-transform ${mobileDropdown === "shop" ? "rotate-180" : ""
+                  }`}
+              />
+            </button>
+            {mobileDropdown === "shop" && (
+              <ul className="ml-3 mb-2 space-y-2">
+                {[
+                  { name: "Store", slug: "/store" },
+                  { name: "Gift Certificates", slug: "/gift-certificates" },
+                ].map((item) => (
+                  <li key={item.name} className="border-b border-gray-100 last:border-none">
+                    <Link
+                      href={item.slug}
+                      className="block text-sm text-gray-600 hover:text-[#008F32] py-2.5"
                     >
                       {item.name}
                     </Link>
@@ -313,6 +343,7 @@ export default function Header() {
               </ul>
             )}
           </div>
+
 
           <Link
             href="/design-build"
@@ -338,7 +369,7 @@ export default function Header() {
               />
             </button>
             {mobileDropdown === "educators" && (
-              <ul className="ml-3 mb-2 space-y-1">
+              <ul className="ml-3 mb-2 space-y-2"> {/* increased spacing */}
                 {[
                   { name: "Field Trips", slug: "/field-trips" },
                   { name: "Income Generator", slug: "/income-generator" },
@@ -348,7 +379,7 @@ export default function Header() {
                   <li key={item.name}>
                     <Link
                       href={item.slug}
-                      className="block text-sm text-gray-600 hover:text-[#008F32] py-1.5"
+                      className="block text-sm text-gray-600 hover:text-[#008F32] py-2.5"
                     >
                       {item.name}
                     </Link>
@@ -371,6 +402,20 @@ export default function Header() {
             Contact
           </Link>
         </nav>
+
+        {/* Social Icons */}
+        <div className="mt-6 flex justify-center space-x-6 px-6 pb-6">
+          <Link href="https://www.facebook.com/bitspacechicago" target="_blank" rel="noopener noreferrer">
+            <FaFacebookF className="h-5 w-5 text-gray-400 hover:text-[#008F32] transition-colors duration-200" />
+          </Link>
+          <Link href="https://www.instagram.com/bitspacechicago" target="_blank" rel="noopener noreferrer">
+            <FaInstagram className="h-5 w-5 text-gray-400 hover:text-[#008F32] transition-colors duration-200" />
+          </Link>
+          <Link href="https://www.tiktok.com/@bitspacechicago" target="_blank" rel="noopener noreferrer">
+            <FaTiktok className="h-5 w-5 text-gray-400 hover:text-[#008F32] transition-colors duration-200" />
+          </Link>
+        </div>
+
       </div>
 
     </header>

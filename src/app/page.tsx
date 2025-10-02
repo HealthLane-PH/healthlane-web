@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from "react";
 import { db } from "../firebaseConfig";
 import { collection, getDocs } from "firebase/firestore";
-import Image from "next/image";
 
 interface UserData {
   id: string;
