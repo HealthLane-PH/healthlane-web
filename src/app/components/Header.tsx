@@ -58,9 +58,12 @@ export default function Header() {
         {/* Logo Center */}
         <div className="flex items-center mx-auto md:mx-0">
           <Image
-            src="../../../images/bitspace-logo-green.png"
+            src="/images/bitspace-logo-green.png" // ✅ root-relative path
             alt="BitSpace Logo"
+            width={160}  // ✅ must specify width
+            height={40}  // ✅ must specify height
             className="h-10 w-auto"
+            priority
           />
         </div>
 
@@ -250,9 +253,12 @@ export default function Header() {
       >
         <div className="flex items-center justify-between px-6 h-16 border-b border-gray-200">
           <Image
-            src="../../../images/bitspace-logo-green.png"
+            src="/images/bitspace-logo-green.png" // ✅ root-relative path
             alt="BitSpace Logo"
-            className="h-8 w-auto"
+            width={160}  // ✅ must specify width
+            height={40}  // ✅ must specify height
+            className="h-10 w-auto"
+            priority
           />
           <button
             className="text-gray-700 hover:text-[#008F32]"

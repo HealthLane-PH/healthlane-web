@@ -64,14 +64,7 @@ export default function Page() {
               {user.provider && (
                 <p className="text-sm text-gray-600">Provider: {user.provider}</p>
               )}
-              {user.photoURL && (
-                <Image
-                  src={user.photoURL}
-                  alt="User avatar"
-                  className="w-12 h-12 rounded-full mt-2"
-                />
-              )}
-            </div>
+                       </div>
           ))}
         </div>
       )}

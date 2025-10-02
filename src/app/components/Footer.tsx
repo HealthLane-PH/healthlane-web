@@ -12,6 +12,8 @@ const Footer = () => {
           <Image
             src="/images/bitspace-logo-white.png"
             alt="BitSpace Logo"
+            width={160}
+            height={40}
             className="h-10 w-auto mb-4"
           />
           <p className="text-xs leading-6">
