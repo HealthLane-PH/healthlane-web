@@ -1,5 +1,33 @@
 @import "tailwindcss";
-body { @apply bg-gray-100 text-blue-600; }
+
+body {
+  @apply bg-[#EEEEEE];
+}
 
 /* Hide Next.js DevTools button in dev */
-#next-logo { display: none !important; }
+#next-logo {
+  display: none !important;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+/* Tell Tailwind’s font-sans token to use our Next/font variable */
+@layer base {
+  :root {
+    --font-sans: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
+    /* optional: if you want to keep a mono token too */
+    /* --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; */
+  }
+}

@@ -37,9 +37,8 @@ export default function Page() {
   }, []);
 
   return (
-    <main className="p-10 bg-gray-100 min-h-screen">
+    <main className="min-h-screen">
       <h1 className="text-2xl font-bold text-blue-600 mb-6">Firebase Users</h1>
-
       {loading ? (
         <p className="text-gray-500">Loading users...</p>
       ) : users.length === 0 ? (
