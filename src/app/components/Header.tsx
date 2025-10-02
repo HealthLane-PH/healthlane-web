@@ -14,6 +14,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { FaBus } from "react-icons/fa";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Header() {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
@@ -56,7 +57,7 @@ export default function Header() {
 
         {/* Logo Center */}
         <div className="flex items-center mx-auto md:mx-0">
-          <img
+          <Image
             src="../../../images/bitspace-logo-green.png"
             alt="BitSpace Logo"
             className="h-10 w-auto"
@@ -248,7 +249,7 @@ export default function Header() {
           }`}
       >
         <div className="flex items-center justify-between px-6 h-16 border-b border-gray-200">
-          <img
+          <Image
             src="../../../images/bitspace-logo-green.png"
             alt="BitSpace Logo"
             className="h-8 w-auto"

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { FaTiktok, FaFacebookF, FaInstagram } from "react-icons/fa";
+import Image from "next/image";
 
 const Footer = () => {
   return (
@@ -8,7 +9,7 @@ const Footer = () => {
 
         {/* Logo / Address */}
         <div>
-          <img
+          <Image
             src="/images/bitspace-logo-white.png"
             alt="BitSpace Logo"
             className="h-10 w-auto mb-4"
