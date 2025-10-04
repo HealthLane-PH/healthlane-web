@@ -1,12 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "./context/AuthContext";
-import Header from "./components/Header";
-import Footer from "./components/Footer";
 import { Montserrat } from "next/font/google";
 import ClientLayout from "./ClientLayout";
-
-import { usePathname } from "next/navigation";
 
 const montserrat = Montserrat({
   subsets: ["latin"],
