@@ -4,16 +4,19 @@ import { AuthProvider } from "./context/AuthContext";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import { Montserrat } from "next/font/google";
+import ClientLayout from "./ClientLayout";
+
+import { usePathname } from "next/navigation";
 
 const montserrat = Montserrat({
   subsets: ["latin"],
   variable: "--font-montserrat",
-  display: "swap", // makes sure it swaps in quickly
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "BitSpace Camps",
-  description: "Register for STEAM Camps at BitSpace",
+  title: "HealthLane PH",
+  description: "Manage clinics, staff, and patients seamlessly",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -21,13 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={montserrat.variable}>
       <body className="font-sans bg-white text-grayMid">
         <AuthProvider>
-          <Header />
-          <main className="pt-[64px]">
-            <div className="mx-auto max-w-7xl px-6">
-              {children}
-            </div>
-          </main>
-          <Footer />
+          <ClientLayout>{children}</ClientLayout>
         </AuthProvider>
       </body>
     </html>

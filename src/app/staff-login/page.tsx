@@ -65,10 +65,10 @@ export default function StaffLoginPage() {
                 {/* Logo */}
                 <div className="flex justify-center mb-6">
                     <Image
-                        src="/images/bitspace-logo-green.png"
-                        alt="BitSpace Logo"
-                        width={180}
-                        height={50}
+                        src="/images/healthlane-logo-colored.png"
+                        alt="HealthLane logo"
+                        width={200}
+                        height={86}
                         priority
                     />
                 </div>

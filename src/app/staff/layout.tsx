@@ -8,18 +8,28 @@ import { auth, db } from "@/firebaseConfig";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
+import {
+  HomeIcon,
+  Building2Icon,
+  UsersIcon,
+  UserCogIcon,
+  InboxIcon,
+} from "lucide-react";
+
+
 
 const menuItems = [
-  { name: "Camps", path: "/staff/dashboard", icon: "🏕️" },
-  { name: "Families", path: "/staff/families", icon: "👨‍👩‍👧" },
-  { name: "Registrations", path: "/staff/registrations", icon: "📋" },
-  { name: "Checkout Forms", path: "/staff/forms", icon: "📝" },
-  { name: "Attendance", path: "/staff/attendance", icon: "✅" },
+  { name: "Home", path: "/staff/dashboard", icon: <HomeIcon className="h-5 w-5" /> },
+  { name: "Facilities", path: "/staff/clinics", icon: <Building2Icon className="h-5 w-5" /> },
+  { name: "Patients", path: "/staff/patients", icon: <UsersIcon className="h-5 w-5" /> },
+  { name: "Staff", path: "/staff/staff-members", icon: <UserCogIcon className="h-5 w-5" /> },
+  { name: "Support Tickets", path: "/staff/inbox", icon: <InboxIcon className="h-5 w-5" /> },
 ];
+
 
 // ✅ Define the shape of Firestore user data
 interface FirestoreUser {
-  preferred_name?: string;
+  preferredName?: string;
   first_name?: string;
   email?: string;
 }
@@ -39,7 +49,7 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
         const snap = await getDoc(doc(db, "users", u.uid));
         if (snap.exists()) setUserData(snap.data() as FirestoreUser);
       } else {
-        router.push("/staff-login");
+        router.push("../staff-login");
       }
     });
     return () => unsubscribe();
@@ -47,7 +57,7 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
 
   const handleLogout = async () => {
     await signOut(auth);
-    router.push("/staff-login");
+    router.push("../staff-login");
   };
 
   return (
@@ -58,28 +68,32 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
           {/* Logo */}
           <div className="flex items-center justify-center py-6">
             <Image
-              src="/images/bitspace-logo-green.png"
-              alt="BitSpace Logo"
-              width={160}
-              height={50}
+              src="/images/healthlane-logo-white.png"
+              alt="HealthLane Logo"
+              width={180}
+              height={77}
               priority
             />
           </div>
 
           {/* Nav Items */}
-          <nav className="flex-1 px-4 space-y-2">
+         <nav className="flex-1 px-4 space-y-2 mt-6">
+
             {menuItems.map((item) => (
               <Link
                 key={item.name}
                 href={item.path}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-md transition ${
-                  pathname === item.path
-                    ? "bg-gray-700 text-white"
-                    : "text-gray-300 hover:bg-gray-600"
-                }`}
+                className={`group flex items-center space-x-2 px-3 py-2 rounded-md transition ${pathname === item.path
+                  ? "bg-gray-700 text-white"
+                  : "text-gray-300 hover:bg-gray-600"
+                  }`}
               >
-                <span>{item.icon}</span>
-                <span>{item.name}</span>
+                <span className={`${pathname === item.path ? "text-[#00A651]" : "text-gray-400 group-hover:text-white"
+                  } transition-colors`}>
+                  {item.icon}
+                </span>
+                <span className="ml-2">{item.name}</span>
+
               </Link>
             ))}
           </nav>
@@ -95,7 +109,7 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
               </div>
               <div>
                 <p className="font-medium">
-                  {userData?.preferred_name || userData?.first_name || "Staff User"}
+                  {userData?.preferredName || userData?.first_name || "Staff User"}
                 </p>
                 <p className="text-sm text-gray-400">{user.email}</p>
               </div>

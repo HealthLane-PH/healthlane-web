@@ -10,21 +10,19 @@ const Footer = () => {
         {/* Logo / Address */}
         <div>
           <Image
-            src="/images/bitspace-logo-white.png"
-            alt="BitSpace Logo"
-            width={160}
-            height={40}
-            className="h-10 w-auto mb-4"
+            src="/images/healthlane-logo-white.png"
+            alt="HealthLane Logo"
+            width={200}
+            height={86}
+            className="h-12 w-auto mb-4"
           />
           <p className="text-xs leading-6">
-            2541 W Lawrence Ave <br />
-            Chicago, IL 60625 <br />
-            (773) 654 1691
+            Naga City, Camarines Sur
           </p>
           {/* Social icons */}
           <div className="flex space-x-4 mt-4">
             <a
-              href="https://www.tiktok.com/@bitspacechicago"
+              href="#"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-[#008F32] transition-colors"
@@ -32,7 +30,7 @@ const Footer = () => {
               <FaTiktok className="h-4 w-4" />
             </a>
             <a
-              href="https://www.facebook.com/bitspacechicago/"
+              href="#"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-[#008F32] transition-colors"
@@ -40,7 +38,7 @@ const Footer = () => {
               <FaFacebookF className="h-4 w-4" />
             </a>
             <a
-              href="https://www.instagram.com/bitspacechicago"
+              href="#"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-[#008F32] transition-colors"
@@ -58,9 +56,6 @@ const Footer = () => {
             <li><Link href="/camps/summer-camp" className="hover:text-[#008F32] transition-colors">Summer Camp</Link></li>
             <li><Link href="/camps/thanksgiving-camp" className="hover:text-[#008F32] transition-colors">Thanksgiving Camp</Link></li>
             <li><Link href="/camps/winter-break" className="hover:text-[#008F32] transition-colors">Winter Break Camp</Link></li>
-            <li><Link href="/camps/spring-break" className="hover:text-[#008F32] transition-colors">Spring Break Camp</Link></li>
-            <li><Link href="/camps/open-shop" className="hover:text-[#008F32] transition-colors">Open Shop</Link></li>
-            <li><Link href="/camps/holiday" className="hover:text-[#008F32] transition-colors">Holiday All-Ages Events</Link></li>
           </ul>
         </div>
 
