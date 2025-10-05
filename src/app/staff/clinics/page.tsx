@@ -18,7 +18,7 @@ import {
   limit,
   updateDoc,
 } from "firebase/firestore";
-import { Pencil, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import ConfirmDeleteModal from "../../components/ConfirmDeleteModal";
 
 // ---------- Types ----------
@@ -83,13 +83,18 @@ export default function ClinicsPage() {
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "clinics"), (snap) => {
       const list: ClinicSuggestion[] = snap.docs.map((d) => {
-        const data = d.data() as any;
+        const data = d.data() as {
+          name?: string;
+          address?: string;
+          contact?: string;
+          type?: FacilityType;
+        };
         return {
           id: d.id,
           name: data.name || "",
           address: data.address || "",
           contact: data.contact || "",
-          type: (data.type as any) || "Clinic",
+          type: (data.type ?? "Clinic") as FacilityType,
         };
       });
       setAllClinics(list);
@@ -280,11 +285,16 @@ export default function ClinicsPage() {
             limit(5)
           );
           const found = await getDocs(clinicsQ);
-          const matched = found.docs.find((d) => (d.data() as any).nameLower === nameLower);
+          const matched = found.docs.find((d) => {
+            const data = d.data() as { nameLower?: string };
+            return data.nameLower === nameLower;
+          });
           if (matched) {
+            const data = matched.data() as { name?: string };
             clinicId = matched.id;
-            finalName = (matched.data() as any).name || rawName;
-          } else {
+            finalName = data.name || rawName;
+          }
+          else {
             const newClinic = await addDoc(collection(db, "clinics"), {
               name: rawName,
               nameLower,
@@ -505,7 +515,7 @@ export default function ClinicsPage() {
                 >
                   <div className="font-medium text-gray-800">{s.name}</div>
                   <div className="text-gray-500 text-xs">
-                    {(s.type as any) || "Clinic"}
+                    {(s.type as FacilityType) || "Clinic"}
                     {s.address ? ` • ${s.address}` : ""}
                   </div>
                 </button>
@@ -710,7 +720,7 @@ export default function ClinicsPage() {
                               ? "bg-gray-50 border border-gray-200 text-gray-500 cursor-not-allowed"
                               : "border border-gray-300"
                               }`}
-                            value={(form as any)[field]}
+                            value={form[field as keyof typeof form] as string}
                             onChange={handleChange}
                             disabled={editingId ? !isEditing : false}
                             required={field !== "middleName"}
@@ -875,8 +885,8 @@ export default function ClinicsPage() {
                               (editingId ? !isEditing : false) || !!c.clinicId
                             }
                             className={`w-full rounded-lg px-3 py-2 text-sm mt-2 focus:ring-2 focus:ring-primary ${(editingId && !isEditing) || c.clinicId
-                                ? "bg-gray-50 border border-gray-200 text-gray-500 cursor-not-allowed"
-                                : "border border-gray-300"
+                              ? "bg-gray-50 border border-gray-200 text-gray-500 cursor-not-allowed"
+                              : "border border-gray-300"
                               }`}
                           />
                           {form.clinicEntries.length > 1 && isEditing && (
@@ -923,7 +933,7 @@ export default function ClinicsPage() {
                         <select
                           key={field}
                           name={field}
-                          value={(form as any)[field]}
+                          value={form[field as keyof typeof form] as string}
                           onChange={handleChange}
                           disabled={editingId ? !isEditing : false}
                           className={`w-full rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary cursor-pointer ${editingId && !isEditing
@@ -983,7 +993,8 @@ export default function ClinicsPage() {
                         disabled={loading}
                         onClick={() => {
                           if (isEditing) {
-                            handleSubmit(new Event("submit") as any);
+                            const fakeForm = document.createElement("form");
+                            handleSubmit({ preventDefault: () => { }, currentTarget: fakeForm } as unknown as React.FormEvent<HTMLFormElement>);
                           } else {
                             setIsEditing(true);
                           }
