@@ -1,5 +1,19 @@
 @import "tailwindcss";
 
+@theme {
+  --color-primary: #1bae69;
+  --color-primaryDark: #169a5f;
+  --color-grayDark: #1B1B1B;
+  --color-grayMid: #333333;
+  --color-grayLight: #EEEEEE;
+  --color-accentOrange: #FF8800;
+  --color-accentYellow: #FFC900;
+  --color-accentBlue: #0081BF;
+  --color-accentRed: #FF5724;
+}
+
+
+/* Optional global body styling */
 body {
   @apply bg-[#EEEEEE];
 }
@@ -19,17 +33,26 @@ body {
     transform: translateY(0);
   }
 }
+
 .animate-fadeIn {
   animation: fadeIn 0.2s ease-out forwards;
 }
 
-/* Tell Tailwind’s font-sans token to use our Next/font variable */
+/* Global fonts */
 @layer base {
   :root {
     --font-sans: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
-    /* optional: if you want to keep a mono token too */
-    /* --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; */
   }
+  
+  input:focus, select:focus, textarea:focus {
+    @apply ring-2 ring-primary/40 outline-none;
+  }
+}
+
+
+/* Form inputs */
+.input {
+  @apply w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:outline-none text-sm;
 }
 
 html, body {
