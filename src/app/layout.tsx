@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "./context/AuthContext";
 import { Montserrat } from "next/font/google";
-import ClientLayout from "./ClientLayout";
+import RootWrapper from "./RootWrapper";
 
 const montserrat = Montserrat({
   subsets: ["latin"],
@@ -20,7 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={montserrat.variable}>
       <body className="font-sans bg-white text-grayMid">
         <AuthProvider>
-          <ClientLayout>{children}</ClientLayout>
+          <RootWrapper>{children}</RootWrapper>
         </AuthProvider>
       </body>
     </html>

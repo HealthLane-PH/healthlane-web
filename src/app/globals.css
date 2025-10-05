@@ -10,6 +10,8 @@
   --color-accentYellow: #FFC900;
   --color-accentBlue: #0081BF;
   --color-accentRed: #FF5724;
+  --color-brandRed: #F36D60;
+  --color-brandRedhover: #FF9999;
 }
 
 
@@ -43,7 +45,7 @@ body {
   :root {
     --font-sans: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
   }
-  
+
   input:focus, select:focus, textarea:focus {
     @apply ring-2 ring-primary/40 outline-none;
   }
@@ -57,4 +59,8 @@ body {
 
 html, body {
   overflow-x: hidden;
+}
+
+button, [role="button"], select, [type="submit"], [type="button"] {
+  cursor: pointer;
 }

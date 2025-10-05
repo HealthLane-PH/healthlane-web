@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
 import Sidebar from "./Sidebar";
+import Image from "next/image";
+
 
 export default function StaffLayout({ children }: { children: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -36,11 +38,18 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
           >
             {isOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
-          <h1 className="text-lg font-semibold text-gray-800">HealthLane</h1>
+          <Image
+            src="/images/healthlane-logo-horizontal.png"
+            alt="HealthLane Logo"
+            width={130}
+            height={40}
+            className="h-8 w-auto"
+          />
           <div className="w-6" />
         </header>
 
-        <main className="flex-1 p-4 md:p-8">{children}</main>
+        <main className="flex-1 w-full bg-gray-50 p-4 md:p-8">{children}</main>
+
       </div>
     </div>
   );

@@ -85,7 +85,8 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
         </header>
 
         {/* Content */}
-        <main className="flex-1 p-4 lg:p-8">{children}</main>
+        <main className="flex-1 w-full bg-gray-50 p-4 md:p-8">{children}</main>
+
       </div>
     </div>
   );
