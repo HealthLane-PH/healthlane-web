@@ -20,8 +20,14 @@ import {
 } from "firebase/firestore";
 import { Trash2 } from "lucide-react";
 import ConfirmDeleteModal from "../../components/ConfirmDeleteModal";
+import { auth } from "@/firebaseConfig";
 
-// ---------- Types ----------
+
+// Put this right after your imports, before your component starts
+const DEFAULT_CITY = "Naga City";
+const DEFAULT_PROVINCE = "Camarines Sur";
+
+
 // ---------- Types ----------
 type FacilityType = "Clinic" | "Laboratory" | "Hospital";
 
@@ -29,17 +35,20 @@ type ClinicRef = { clinicId: string; name: string };
 
 type ClinicEntry = {
   name: string;
-  address: string;
+  buildingStreet: string;
+  city: string;
+  province: string;
   type: FacilityType;
-  clinicId?: string; // set when chosen from autocomplete
-  doctorContact?: string; // optional, per-doctor contact for this clinic
+  clinicId?: string;
+  doctorContact?: string;
 };
-
 
 type ClinicSuggestion = {
   id: string;
   name: string;
-  address?: string;
+  buildingStreet?: string;
+  city?: string;
+  province?: string;
   contact?: string;
   type?: FacilityType;
 };
@@ -58,6 +67,10 @@ type DoctorDoc = {
   status: "Active" | "Pending" | "Suspended";
   createdAt?: unknown;
   updatedAt?: unknown;
+  createdBy?: string;
+  createdByName?: string;
+  updatedBy?: string;
+  updatedByName?: string;
 };
 
 const normalize = (str: string) =>
@@ -65,6 +78,7 @@ const normalize = (str: string) =>
 
 // ---------- Component ----------
 export default function ClinicsPage() {
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -79,20 +93,61 @@ export default function ClinicsPage() {
   const [deleteDoctorName, setDeleteDoctorName] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
 
+  const [showCityDropdown, setShowCityDropdown] = useState(false);
+
+
+  // ---------- Filters ----------
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCities, setSelectedCities] = useState<string[]>([]);
+  const [activeStatus, setActiveStatus] = useState<"Pending" | "Active" | "Suspended" | "All">("All");
+
+  useEffect(() => {
+    const savedCities = localStorage.getItem("selectedCities");
+    const savedStatus = localStorage.getItem("activeStatus");
+    if (savedCities) setSelectedCities(JSON.parse(savedCities));
+    if (savedStatus) setActiveStatus(savedStatus as typeof activeStatus);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("selectedCities", JSON.stringify(selectedCities));
+    localStorage.setItem("activeStatus", activeStatus);
+  }, [selectedCities, activeStatus]);
+
+
+  // Extract unique city names for filter dropdown
+  const cityOptions = useMemo(() => {
+    const unique = new Set(allClinics.map((c) => c.city || DEFAULT_CITY));
+    return Array.from(unique).sort();
+  }, [allClinics]);
+
+  useEffect(() => {
+    const close = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(".relative")) setShowCityDropdown(false);
+    };
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, []);
+
+
   // Subscribe once; no per-keystroke queries anymore
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "clinics"), (snap) => {
       const list: ClinicSuggestion[] = snap.docs.map((d) => {
         const data = d.data() as {
           name?: string;
-          address?: string;
+          buildingStreet?: string;
+          city?: string;
+          province?: string;
           contact?: string;
           type?: FacilityType;
         };
         return {
           id: d.id,
           name: data.name || "",
-          address: data.address || "",
+          buildingStreet: data.buildingStreet || "",
+          city: data.city || DEFAULT_CITY,
+          province: data.province || DEFAULT_PROVINCE,
           contact: data.contact || "",
           type: (data.type ?? "Clinic") as FacilityType,
         };
@@ -121,7 +176,16 @@ export default function ClinicsPage() {
     specializations: [],
     contact: "",
     email: "",
-    clinicEntries: [{ name: "", address: "", type: "Clinic", doctorContact: "" }],
+    clinicEntries: [
+      {
+        name: "",
+        buildingStreet: "",
+        city: DEFAULT_CITY,
+        province: DEFAULT_PROVINCE,
+        type: "Clinic",
+        doctorContact: "",
+      },
+    ],
     userType: "Regular",
     status: "Active",
   });
@@ -135,6 +199,53 @@ export default function ClinicsPage() {
     });
     return () => unsub();
   }, []);
+
+  // ---------- Derived filtered list ----------
+  const filteredDoctors = useMemo(() => {
+    return doctors.filter((doc) => {
+
+      // Search filter (multi-term, across first/middle/last/specs/clinics)
+      const matchSearch = (() => {
+        const q = normalize(searchTerm);
+        if (!q) return true; // no query → always match
+
+        // Split the query into words ("joseph aluzan" -> ["joseph","aluzan"])
+        const terms = q.split(/\s+/).filter(Boolean);
+
+        // One big searchable string for this doctor
+        const fullText = normalize(
+          [
+            doc.firstName,
+            doc.middleName ?? "",
+            doc.lastName,
+            doc.specializations.join(" "),
+            ...doc.clinics.map((c) => c.name),
+          ].join(" ")
+        );
+
+        // Every term must appear somewhere (order doesn't matter)
+        return terms.every((t) => fullText.includes(t));
+      })();
+
+
+      // City filter
+      const matchCity =
+        selectedCities.length === 0 ||
+        doc.clinics.some((c) =>
+          allClinics.some(
+            (clinic) =>
+              clinic.id === c.clinicId &&
+              selectedCities.includes(clinic.city || DEFAULT_CITY)
+          )
+        );
+
+      // Status filter
+      const matchStatus =
+        activeStatus === "All" || doc.status === activeStatus;
+
+      return matchSearch && matchCity && matchStatus;
+    });
+  }, [doctors, searchTerm, selectedCities, activeStatus, allClinics]);
 
   // ---------- Handlers ----------
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -157,7 +268,14 @@ export default function ClinicsPage() {
         ...prev,
         clinicEntries: [
           ...prev.clinicEntries,
-          { name: "", address: "", type: "Clinic", doctorContact: "" },
+          {
+            name: "",
+            buildingStreet: "",
+            city: DEFAULT_CITY,
+            province: DEFAULT_PROVINCE,
+            type: "Clinic",
+            doctorContact: "",
+          },
         ],
       };
     });
@@ -180,7 +298,16 @@ export default function ClinicsPage() {
       specializations: [],
       contact: "",
       email: "",
-      clinicEntries: [{ name: "", address: "", type: "Clinic", doctorContact: "" }],
+      clinicEntries: [
+        {
+          name: "",
+          buildingStreet: "",
+          city: DEFAULT_CITY,
+          province: DEFAULT_PROVINCE,
+          type: "Clinic",
+          doctorContact: "",
+        },
+      ],
       userType: "Regular",
       status: "Active",
     });
@@ -211,6 +338,13 @@ export default function ClinicsPage() {
     }
     return null;
   };
+
+  const toTitleCase = (str: string) =>
+    str
+      .toLowerCase()
+      .replace(/\b\w/g, (char) => char.toUpperCase())
+      .trim();
+
 
   // ---------- Submit ----------
   const handleSubmit = async (e: React.FormEvent) => {
@@ -260,7 +394,24 @@ export default function ClinicsPage() {
 
 
     try {
-      const dupId = await findDuplicateDoctorId(form.firstName, form.middleName, form.lastName, editingId);
+
+      // --- Clean capitalization before saving ---
+      const cleanedForm = {
+        ...form,
+        firstName: toTitleCase(form.firstName),
+        middleName: toTitleCase(form.middleName),
+        lastName: toTitleCase(form.lastName),
+        titles: form.titles.trim(),
+        clinicEntries: form.clinicEntries.map((c) => ({
+          ...c,
+          name: toTitleCase(c.name),
+          buildingStreet: toTitleCase(c.buildingStreet),
+          city: toTitleCase(c.city),
+          province: toTitleCase(c.province),
+        })),
+      };
+
+      const dupId = await findDuplicateDoctorId(cleanedForm.firstName, cleanedForm.middleName, cleanedForm.lastName, editingId);
       if (dupId) {
         setAlert("⚠️ A doctor with a similar name already exists.");
         setLoading(false);
@@ -268,7 +419,7 @@ export default function ClinicsPage() {
       }
 
       const clinicRefs: ClinicRef[] = [];
-      for (const entry of form.clinicEntries) {
+      for (const entry of cleanedForm.clinicEntries) {
         const rawName = entry.name?.trim();
         if (!rawName) continue;
 
@@ -298,7 +449,9 @@ export default function ClinicsPage() {
             const newClinic = await addDoc(collection(db, "clinics"), {
               name: rawName,
               nameLower,
-              address: entry.address || "",
+              buildingStreet: entry.buildingStreet || "",
+              city: entry.city || DEFAULT_CITY, // default for now
+              province: entry.province || DEFAULT_PROVINCE, // default for now
               type: "Clinic",
               createdAt: serverTimestamp(),
             });
@@ -309,19 +462,33 @@ export default function ClinicsPage() {
         clinicRefs.push({ clinicId: clinicId!, name: finalName });
       }
 
+      // Get current logged-in staff user
+      const user = auth.currentUser;
+
       const doctorPayload: Omit<DoctorDoc, "id"> = {
-        firstName: form.firstName.trim(),
-        middleName: form.middleName.trim(),
-        lastName: form.lastName.trim(),
-        titles: form.titles,
-        specializations: form.specializations,
-        contact: form.contact,
-        email: form.email,
+        firstName: cleanedForm.firstName,
+        middleName: cleanedForm.middleName,
+        lastName: cleanedForm.lastName,
+        titles: cleanedForm.titles,
+        specializations: cleanedForm.specializations,
+        contact: cleanedForm.contact,
+        email: cleanedForm.email,
         clinics: clinicRefs,
-        userType: form.userType,
-        status: form.status,
-        ...(editingId ? { updatedAt: serverTimestamp() } : { createdAt: serverTimestamp() }),
+        userType: cleanedForm.userType,
+        status: cleanedForm.status,
+        ...(editingId
+          ? {
+            updatedAt: serverTimestamp(),
+            updatedBy: user?.uid || "system",
+            updatedByName: user?.displayName || user?.email || "System",
+          }
+          : {
+            createdAt: serverTimestamp(),
+            createdBy: user?.uid || "system",
+            createdByName: user?.displayName || user?.email || "System",
+          }),
       };
+
 
       if (editingId) {
         await updateDoc(doc(db, "doctors", editingId), doctorPayload);
@@ -384,12 +551,23 @@ export default function ClinicsPage() {
           const matchedClinic = allClinics.find((cl) => cl.id === c.clinicId);
           return {
             name: c.name,
-            address: matchedClinic?.address || "",
+            buildingStreet: matchedClinic?.buildingStreet || "",
+            city: matchedClinic?.city || DEFAULT_CITY,
+            province: matchedClinic?.province || DEFAULT_PROVINCE,
             contact: matchedClinic?.contact || "",
             type: matchedClinic?.type || "Clinic",
             clinicId: c.clinicId,
           };
-        }) || [{ name: "", address: "", contact: "", type: "Clinic" }],
+        }) || [
+          {
+            name: "",
+            buildingStreet: "",
+            city: DEFAULT_CITY,
+            province: DEFAULT_PROVINCE,
+            contact: "",
+            type: "Clinic",
+          },
+        ],
 
       userType: item.userType || "Regular",
       status: item.status || "Active",
@@ -516,7 +694,7 @@ export default function ClinicsPage() {
                   <div className="font-medium text-gray-800">{s.name}</div>
                   <div className="text-gray-500 text-xs">
                     {(s.type as FacilityType) || "Clinic"}
-                    {s.address ? ` • ${s.address}` : ""}
+                    {s.buildingStreet ? ` • ${s.buildingStreet}` : ""}
                   </div>
                 </button>
               ))}
@@ -539,6 +717,7 @@ export default function ClinicsPage() {
         <button
           onClick={() => {
             resetForm();
+            setSearchTerm("");
             setIsModalOpen(true);
           }}
           className="bg-primary hover:bg-primaryDark text-white text-sm sm:text-base px-4 py-3 sm:py-2 rounded-md text-center transition cursor-pointer w-full sm:w-auto"
@@ -546,6 +725,123 @@ export default function ClinicsPage() {
           + Add Doctor
         </button>
       </div>
+
+      {/* Search + Location Filter + Tabs */}
+      {/* Search & Filters */}
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        {/* Search bar */}
+        <div className="flex-1 relative">
+          <input
+            type="text"
+            placeholder="Search by doctor, specialization, or clinic..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full border border-gray-200 rounded-lg px-4 py-3 pl-10 text-sm focus:ring-2 focus:ring-primary focus:outline-none bg-gray-50 focus:bg-white transition"
+          />
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-4.35-4.35M9.5 17a7.5 7.5 0 100-15 7.5 7.5 0 000 15z" />
+          </svg>
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        {/* Location Multi-Select */}
+        <div className="relative w-full md:w-64">
+          <button
+            onClick={() => setShowCityDropdown((p) => !p)}
+            className="w-full border border-gray-200 bg-gray-50 hover:bg-white rounded-lg px-3 py-3 text-sm flex justify-between items-center focus:ring-2 focus:ring-primary transition"
+          >
+            <span className="truncate text-gray-700">
+              {selectedCities.length === 0
+                ? "Filter by location..."
+                : `${selectedCities.length} selected`}
+            </span>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className={`w-4 h-4 text-gray-500 transform transition ${showCityDropdown ? "rotate-180" : ""
+                }`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {/* Dropdown */}
+          {showCityDropdown && (
+            <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-md max-h-60 overflow-auto text-sm">
+              <div className="p-2 border-b border-gray-100 flex justify-between items-center">
+                <button
+                  className="text-xs text-gray-500 hover:underline"
+                  onClick={() => setSelectedCities([])}
+                >
+                  Clear
+                </button>
+                <button
+                  className="text-xs text-gray-500 hover:underline"
+                  onClick={() => setSelectedCities([...cityOptions])}
+                >
+                  Select all
+                </button>
+              </div>
+              {cityOptions.map((city) => (
+                <label
+                  key={city}
+                  className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedCities.includes(city)}
+                    onChange={() =>
+                      setSelectedCities((prev) =>
+                        prev.includes(city)
+                          ? prev.filter((c) => c !== city)
+                          : [...prev, city]
+                      )
+                    }
+                    className="text-primary focus:ring-primary"
+                  />
+                  <span>{city}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+
+      {/* Status Tabs */}
+      <div className="flex gap-6 border-b border-gray-200 mb-6 text-sm font-medium">
+        {["Pending", "Active", "Suspended", "All"].map((status) => (
+          <button
+            key={status}
+            onClick={() => setActiveStatus(status as typeof activeStatus)}
+            className={`pb-2 ${activeStatus === status
+              ? "border-b-2 border-primary text-primary"
+              : "text-gray-500 hover:text-gray-700"
+              }`}
+          >
+            {status === "All"
+              ? `All (${doctors.length})`
+              : `${status} (${doctors.filter((d) => d.status === status).length
+              })`}
+          </button>
+        ))}
+      </div>
+
 
       <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-4 border-b border-gray-100 flex justify-between items-center">
@@ -562,17 +858,17 @@ export default function ClinicsPage() {
               </tr>
             </thead>
             <tbody>
-              {doctors.length === 0 ? (
+              {filteredDoctors.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-6 text-center text-gray-500 italic">
                     No doctors registered yet.
                   </td>
                 </tr>
               ) : (
-                doctors.map((item) => (
+                filteredDoctors.map((item) => (
                   <tr
                     key={item.id}
-                    className="border-t border-gray-100 hover:bg-gray-50 transition cursor-pointer"
+                    className="border-t border-gray-100 hover:bg-gray-50 hover:-translate-y-[1px] transition-all duration-150 cursor-pointer"
                     onClick={() => handleEdit(item.id!)}
                   >
                     <td className="px-6 py-3 font-medium text-primary">{formattedDoctorName(item)}</td>
@@ -602,12 +898,12 @@ export default function ClinicsPage() {
 
         {/* Mobile View — simplified list */}
         <div className="block sm:hidden divide-y divide-gray-100">
-          {doctors.length === 0 ? (
+          {filteredDoctors.length === 0 ? (
             <div className="text-center text-gray-500 italic py-6">
               No doctors registered yet.
             </div>
           ) : (
-            doctors.map((item) => (
+            filteredDoctors.map((item) => (
               <div
                 key={item.id}
                 onClick={() => handleEdit(item.id!)}
@@ -716,7 +1012,7 @@ export default function ClinicsPage() {
                                   ? "Middle Name"
                                   : "Last Name"
                             }
-                            className={`w-full rounded-lg px-3 py-2 text-sm mt-2 focus:ring-2 focus:ring-primary ${editingId && !isEditing
+                            className={`capitalize w-full rounded-lg px-3 py-2 text-sm mt-2 focus:ring-2 focus:ring-primary ${editingId && !isEditing
                               ? "bg-gray-50 border border-gray-200 text-gray-500 cursor-not-allowed"
                               : "border border-gray-300"
                               }`}
@@ -732,7 +1028,7 @@ export default function ClinicsPage() {
                       <input
                         name="titles"
                         placeholder="Post-nominal Titles"
-                        className={`w-full rounded-lg px-3 py-2 text-sm mt-2 focus:ring-2 focus:ring-primary ${editingId && !isEditing
+                        className={`uppercase w-full rounded-lg px-3 py-2 text-sm mt-2 focus:ring-2 focus:ring-primary ${editingId && !isEditing
                           ? "bg-gray-50 border border-gray-200 text-gray-500 cursor-not-allowed"
                           : "border border-gray-300"
                           }`}
@@ -869,7 +1165,9 @@ export default function ClinicsPage() {
                                 ...next[i],
                                 name: s.name,
                                 clinicId: s.id,
-                                address: s.address || "",
+                                buildingStreet: s.buildingStreet || "",
+                                city: s.city || DEFAULT_CITY,
+                                province: s.province || DEFAULT_PROVINCE,
                                 type: "Clinic",
                               };
                               setForm((prev) => ({ ...prev, clinicEntries: next }));
@@ -878,17 +1176,39 @@ export default function ClinicsPage() {
                           />
 
                           <input
-                            placeholder="Clinic Address"
-                            value={c.address}
-                            onChange={(e) => handleClinicChange(i, "address", e.target.value)}
-                            disabled={
-                              (editingId ? !isEditing : false) || !!c.clinicId
-                            }
-                            className={`w-full rounded-lg px-3 py-2 text-sm mt-2 focus:ring-2 focus:ring-primary ${(editingId && !isEditing) || c.clinicId
+                            placeholder="Building & Street Address"
+                            value={c.buildingStreet}
+                            onChange={(e) => handleClinicChange(i, "buildingStreet", e.target.value)}
+                            disabled={(editingId ? !isEditing : false) || !!c.clinicId}
+                            className={`capitalize w-full rounded-lg px-3 py-2 text-sm mt-2 focus:ring-2 focus:ring-primary ${(editingId && !isEditing) || c.clinicId
                               ? "bg-gray-50 border border-gray-200 text-gray-500 cursor-not-allowed"
                               : "border border-gray-300"
                               }`}
                           />
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+                            <input
+                              placeholder="City"
+                              value={c.city}
+                              onChange={(e) => handleClinicChange(i, "city", e.target.value)}
+                              disabled={(editingId ? !isEditing : false) || !!c.clinicId}
+                              className={`capitalize w-full rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary ${(editingId && !isEditing) || c.clinicId
+                                ? "bg-gray-50 border border-gray-200 text-gray-500 cursor-not-allowed"
+                                : "border border-gray-300"
+                                }`}
+                            />
+                            <input
+                              placeholder="Province"
+                              value={c.province}
+                              onChange={(e) => handleClinicChange(i, "province", e.target.value)}
+                              disabled={(editingId ? !isEditing : false) || !!c.clinicId}
+                              className={`capitalize w-full rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary ${(editingId && !isEditing) || c.clinicId
+                                ? "bg-gray-50 border border-gray-200 text-gray-500 cursor-not-allowed"
+                                : "border border-gray-300"
+                                }`}
+                            />
+                          </div>
+
                           {form.clinicEntries.length > 1 && isEditing && (
                             <div className="flex justify-end pt-2">
                               <button
@@ -1023,6 +1343,18 @@ export default function ClinicsPage() {
                   </div>
                 </div>
 
+                {editingId && (
+                  <div className="text-xs text-gray-400 border-t border-gray-100 mt-4 pt-2">
+                    <p>
+                      Created by:{" "}
+                      {doctors.find((d) => d.id === editingId)?.createdByName || "Unknown"}
+                    </p>
+                    <p>
+                      Last updated by:{" "}
+                      {doctors.find((d) => d.id === editingId)?.updatedByName || "—"}
+                    </p>
+                  </div>
+                )}
 
               </form>
             </motion.div>
