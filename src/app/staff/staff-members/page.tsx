@@ -105,26 +105,40 @@ export default function StaffPage() {
     const term = searchTerm.toLowerCase().trim();
 
     return staffList.filter((s) => {
-      if (!term) return true;
+      // Role filter
+      if (activeRole !== "All" && s.role !== activeRole) return false;
 
-      const fields = [
-        s.firstName,
-        s.lastName,
-        s.preferredName,
-        s.email,
-        s.assignedCity,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
+      // Status filter
+      if (activeStatus !== "All" && s.status !== activeStatus) return false;
 
-      // Split the search into separate words
-      const words = term.split(/\s+/).filter(Boolean);
+      // City filter
+      if (
+        selectedCities.length > 0 &&
+        !selectedCities.includes(s.assignedCity || "Naga City")
+      )
+        return false;
 
-      // Each word must appear somewhere in the fields string
-      return words.every((word) => fields.includes(word));
+      // Search term filter
+      if (term) {
+        const fields = [
+          s.firstName,
+          s.lastName,
+          s.preferredName,
+          s.email,
+          s.assignedCity,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+
+        const words = term.split(/\s+/).filter(Boolean);
+        if (!words.every((word) => fields.includes(word))) return false;
+      }
+
+      return true;
     });
-  }, [staffList, searchTerm]);
+  }, [staffList, searchTerm, activeRole, activeStatus, selectedCities]);
+
 
   // ---------- Handlers ----------
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
