@@ -14,7 +14,7 @@ import {
   query,
   orderBy,
 } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { Trash2, Upload } from "lucide-react";
 import ConfirmDeleteModal from "../../components/ConfirmDeleteModal";
 import { Timestamp, FieldValue } from "firebase/firestore";
@@ -71,6 +71,10 @@ export default function StaffPage() {
   const [activeStatus, setActiveStatus] = useState<StatusType>("All");
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [showCityDropdown, setShowCityDropdown] = useState(false);
+
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+
+  const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState<StaffDoc>({
     firstName: "",
@@ -169,7 +173,7 @@ export default function StaffPage() {
       return;
     }
 
-    setLoading(true);
+    setSaving(true);
     try {
       const user = auth.currentUser;
       const payload: Omit<StaffDoc, "id"> = {
@@ -207,7 +211,7 @@ export default function StaffPage() {
       console.error(err);
       setAlert("❌ Error saving data.");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
@@ -231,14 +235,34 @@ export default function StaffPage() {
     setIsModalOpen(true);
   };
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
     const fileRef = ref(storage, `staff_photos/${Date.now()}_${file.name}`);
-    await uploadBytes(fileRef, file);
-    const url = await getDownloadURL(fileRef);
-    setForm((prev) => ({ ...prev, photoURL: url }));
+    const uploadTask = uploadBytesResumable(fileRef, file);
+
+    setUploadProgress(0); // start showing progress
+
+    uploadTask.on(
+      "state_changed",
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        setUploadProgress(progress);
+      },
+      (error) => {
+        console.error("Upload error:", error);
+        setUploadProgress(null);
+        setAlert("❌ Upload failed. Please try again.");
+      },
+      async () => {
+        const url = await getDownloadURL(uploadTask.snapshot.ref);
+        setForm((prev) => ({ ...prev, photoURL: url }));
+        setUploadProgress(null); // hide progress when done
+      }
+    );
   };
+
 
   const capitalize = (str: string) =>
     str.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
@@ -251,22 +275,64 @@ export default function StaffPage() {
       .slice(0, 2)
       .toUpperCase();
 
+  // Simple inline spinner component
+  const Spinner = () => (
+    <svg
+      className="animate-spin h-4 w-4 text-white inline-block ml-2"
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      ></circle>
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+      ></path>
+    </svg>
+  );
+
   // ---------- UI ----------
   return (
     <div className="w-full px-4 sm:px-8 md:px-10 lg:px-12 mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
+      <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Staff</h1>
+
+        {/* Desktop: full button */}
         <button
           onClick={() => {
             resetForm();
             setIsModalOpen(true);
           }}
-          className="bg-primary hover:bg-primaryDark text-white text-sm sm:text-base px-4 py-3 sm:py-2 rounded-md text-center transition cursor-pointer w-full sm:w-auto"
+          className="hidden sm:block bg-primary hover:bg-primaryDark text-white text-sm px-4 py-2 rounded-md transition"
         >
           + Add Staff
         </button>
+
+        {/* Mobile: compact button */}
+        <button
+          onClick={() => {
+            resetForm();
+            setIsModalOpen(true);
+          }}
+          className="sm:hidden bg-primary hover:bg-primaryDark text-white font-extrabold text-[1.5rem] leading-none w-11 h-11 rounded-xl flex items-center justify-center shadow-md active:scale-95 transition-transform"
+          aria-label="Add Staff"
+        >
+          +
+        </button>
+
+
       </div>
+
+
 
       {/* Search & Filters */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
@@ -609,17 +675,34 @@ export default function StaffPage() {
                         {initials(form.preferredName || form.firstName || "N")}
                       </div>
                     )}
-                    <label className="cursor-pointer text-sm text-primary hover:underline mt-1">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handlePhotoUpload}
-                        className="hidden"
-                      />
-                      <div className="flex items-center gap-1">
-                        <Upload size={14} /> Upload Photo
-                      </div>
-                    </label>
+                    <div className="flex flex-col items-center mt-1 w-full">
+                      <label className="cursor-pointer text-sm text-primary hover:underline">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handlePhotoUpload}
+                          className="hidden"
+                        />
+                        <div className="flex items-center gap-1">
+                          <Upload size={14} /> Upload Photo
+                        </div>
+                      </label>
+
+                      {uploadProgress !== null && (
+                        <div className="w-full mt-2">
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-primary h-2 rounded-full transition-all duration-200"
+                              style={{ width: `${uploadProgress}%` }}
+                            ></div>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1 text-center">
+                            Uploading... {uploadProgress.toFixed(0)}%
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
                   </div>
 
                   {/* Name and City Fields */}
@@ -763,14 +846,22 @@ export default function StaffPage() {
                     </button>
                     <button
                       type="submit"
-                      disabled={loading}
-                      className={`px-4 py-2 rounded-md transition ${loading
-                        ? "bg-gray-300 text-gray-600 cursor-not-allowed"
+                      disabled={saving}
+                      className={`flex items-center justify-center gap-2 px-4 py-2 rounded-md transition ${saving
+                        ? "bg-primary text-white opacity-80 cursor-wait"
                         : "bg-primary text-white hover:bg-primaryDark"
                         }`}
                     >
-                      {loading ? "Saving..." : "Save"}
+                      {saving ? (
+                        <>
+                          Saving
+                          <Spinner />
+                        </>
+                      ) : (
+                        "Save"
+                      )}
                     </button>
+
                   </div>
                 </div>
 
@@ -797,6 +888,7 @@ export default function StaffPage() {
                 )}
 
               </form>
+
             </motion.div>
           </motion.div>
         )}

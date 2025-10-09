@@ -76,6 +76,31 @@ type DoctorDoc = {
 const normalize = (str: string) =>
   str?.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") || "";
 
+// Simple inline spinner component
+const Spinner = () => (
+  <svg
+    className="animate-spin h-4 w-4 text-white inline-block ml-2"
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+  >
+    <circle
+      className="opacity-25"
+      cx="12"
+      cy="12"
+      r="10"
+      stroke="currentColor"
+      strokeWidth="4"
+    ></circle>
+    <path
+      className="opacity-75"
+      fill="currentColor"
+      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+    ></path>
+  </svg>
+);
+
+
 // ---------- Component ----------
 export default function ClinicsPage() {
 
@@ -192,13 +217,16 @@ export default function ClinicsPage() {
 
   // ---------- Live list ----------
   useEffect(() => {
+    setLoading(true);
     const q = query(collection(db, "doctors"), orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as DoctorDoc) }));
       setDoctors(list);
+      setLoading(false);
     });
     return () => unsub();
   }, []);
+
 
   // ---------- Derived filtered list ----------
   const filteredDoctors = useMemo(() => {
@@ -712,19 +740,35 @@ export default function ClinicsPage() {
   return (
     <div className="w-full px-4 sm:px-8 md:px-10 lg:px-12 mx-auto">
 
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
+      <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Clinics</h1>
+
+        {/* Desktop: full button */}
         <button
           onClick={() => {
             resetForm();
             setSearchTerm("");
             setIsModalOpen(true);
           }}
-          className="bg-primary hover:bg-primaryDark text-white text-sm sm:text-base px-4 py-3 sm:py-2 rounded-md text-center transition cursor-pointer w-full sm:w-auto"
+          className="hidden sm:block bg-primary hover:bg-primaryDark text-white text-sm px-4 py-2 rounded-md transition"
         >
           + Add Doctor
         </button>
+
+        {/* Mobile: compact green square button */}
+        <button
+          onClick={() => {
+            resetForm();
+            setSearchTerm("");
+            setIsModalOpen(true);
+          }}
+          className="sm:hidden bg-primary hover:bg-primaryDark text-white font-extrabold text-[1.5rem] leading-none w-11 h-11 rounded-xl flex items-center justify-center shadow-md active:scale-95 transition-transform"
+          aria-label="Add Doctor"
+        >
+          +
+        </button>
       </div>
+
 
       {/* Search + Location Filter + Tabs */}
       {/* Search & Filters */}
@@ -858,7 +902,22 @@ export default function ClinicsPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredDoctors.length === 0 ? (
+              {loading ? (
+                // 🩶 shimmer skeleton loader (desktop)
+                [...Array(3)].map((_, i) => (
+                  <tr key={i} className="animate-pulse border-t border-gray-100">
+                    <td colSpan={5} className="px-6 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 bg-gray-200 rounded-full"></div>
+                        <div className="flex flex-col gap-2 w-full">
+                          <div className="h-3 bg-gray-200 rounded w-1/3"></div>
+                          <div className="h-2 bg-gray-100 rounded w-1/4"></div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : filteredDoctors.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-6 text-center text-gray-500 italic">
                     No doctors registered yet.
@@ -898,7 +957,22 @@ export default function ClinicsPage() {
 
         {/* Mobile View — simplified list */}
         <div className="block sm:hidden divide-y divide-gray-100">
-          {filteredDoctors.length === 0 ? (
+          {loading ? (
+            <div className="space-y-3 p-3">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="animate-pulse flex items-center justify-between border-b border-gray-100 pb-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="rounded-full bg-gray-200 h-10 w-10"></div>
+                    <div className="space-y-2">
+                      <div className="h-3 bg-gray-200 rounded w-24"></div>
+                      <div className="h-2 bg-gray-100 rounded w-16"></div>
+                    </div>
+                  </div>
+                  <div className="h-5 w-14 bg-gray-100 rounded-full"></div>
+                </div>
+              ))}
+            </div>
+          ) : filteredDoctors.length === 0 ? (
             <div className="text-center text-gray-500 italic py-6">
               No doctors registered yet.
             </div>
@@ -1319,25 +1393,41 @@ export default function ClinicsPage() {
                             setIsEditing(true);
                           }
                         }}
-                        className={`px-4 py-2 rounded-md transition ${loading
-                          ? "bg-gray-300 text-gray-600 cursor-not-allowed"
+                        className={`flex items-center justify-center gap-2 px-4 py-2 rounded-md transition ${loading
+                          ? "bg-primary text-white opacity-80 cursor-wait"
                           : isEditing
                             ? "bg-primary text-white hover:bg-primaryDark"
                             : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                           }`}
                       >
-                        {loading ? "Saving..." : isEditing ? "Save Changes" : "Edit"}
+                        {loading ? (
+                          <>
+                            Saving
+                            <Spinner />
+                          </>
+                        ) : isEditing ? (
+                          "Save Changes"
+                        ) : (
+                          "Edit"
+                        )}
                       </button>
                     ) : (
                       <button
                         type="submit"
                         disabled={loading}
-                        className={`px-4 py-2 rounded-md transition ${loading
-                          ? "bg-gray-300 text-gray-600 cursor-not-allowed"
+                        className={`flex items-center justify-center gap-2 px-4 py-2 rounded-md transition ${loading
+                          ? "bg-primary text-white opacity-80 cursor-wait"
                           : "bg-primary text-white hover:bg-primaryDark"
                           }`}
                       >
-                        {loading ? "Saving Clinic..." : "Save Clinic"}
+                        {loading ? (
+                          <>
+                            Saving
+                            <Spinner />
+                          </>
+                        ) : (
+                          "Save"
+                        )}
                       </button>
                     )}
                   </div>
