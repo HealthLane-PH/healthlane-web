@@ -21,7 +21,7 @@ export default function RootWrapper({ children }: { children: React.ReactNode })
       </div>
 
       {/* Contained content below navbar */}
-      <main className="max-w-md md:max-w-3xl lg:max-w-6xl mx-auto px-4 pt-24 pb-12 bg-gray-50 min-h-screen">
+      <main className="max-w-md md:max-w-3xl lg:max-w-6xl mx-auto px-4 pt-24 pb-12 bg-grayBg min-h-screen">
         {children}
       </main>
     </>

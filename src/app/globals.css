@@ -5,6 +5,7 @@
   --color-primaryDark: #169a5f;
   --color-grayDark: #1B1B1B;
   --color-grayMid: #333333;
+  --color-grayBg: #F8F8F8;
   --color-grayLight: #EEEEEE;
   --color-accentOrange: #FF8800;
   --color-accentYellow: #FFC900;
@@ -17,7 +18,7 @@
 
 /* Optional global body styling */
 body {
-  @apply bg-[#EEEEEE];
+  @apply bg-[#F8F8F8];
 }
 
 /* Hide Next.js DevTools button in dev */
@@ -63,4 +64,12 @@ html, body {
 
 button, [role="button"], select, [type="submit"], [type="button"] {
   cursor: pointer;
+}
+
+:root {
+  --toastify-color-success: #1bae69;
+  --toastify-color-error: #d32f2f;
+  --toastify-color-info: #1e88e5;
+  --toastify-toast-background: #ffffff;
+  --toastify-font-family: 'Montserrat', sans-serif;
 }

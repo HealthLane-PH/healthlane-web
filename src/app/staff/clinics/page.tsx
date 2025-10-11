@@ -7,6 +7,7 @@ import {
   addDoc,
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDocs,
   onSnapshot,
@@ -18,9 +19,13 @@ import {
   limit,
   updateDoc,
 } from "firebase/firestore";
-import { Trash2 } from "lucide-react";
 import ConfirmDeleteModal from "../../components/ConfirmDeleteModal";
 import { auth } from "@/firebaseConfig";
+import { storage } from "@/firebaseConfig";
+import { Pencil, Trash2, ZoomIn } from "lucide-react";
+import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage";
+import { format } from "date-fns";
+
 
 
 // Put this right after your imports, before your component starts
@@ -58,6 +63,10 @@ type DoctorDoc = {
   firstName: string;
   middleName: string;
   lastName: string;
+  nameExtension?: string; // e.g., Jr., Sr., III
+  profilePicPath?: string | null;
+  profilePicUrl?: string; // derived for display
+  profilePicUploadedAt?: { seconds: number } | null;
   titles?: string;
   specializations: string[];
   contact?: string;
@@ -71,6 +80,11 @@ type DoctorDoc = {
   createdByName?: string;
   updatedBy?: string;
   updatedByName?: string;
+  prcIdPath?: string | null;
+  prcIdUploadedAt?: { seconds: number } | null;
+  prcExpiryDate?: string;
+  // ✅ add this derived helper for display only
+  prcIdUrl?: string;
 };
 
 const normalize = (str: string) =>
@@ -115,6 +129,14 @@ export default function ClinicsPage() {
   // All clinics cached client-side for instant autocomplete
   const [allClinics, setAllClinics] = useState<ClinicSuggestion[]>([]);
 
+  // For PRC image management
+  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  const [uploadingPrc, setUploadingPrc] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [prcUploadProgress, setPrcUploadProgress] = useState<number | null>(null);
+
+
+
   const [deleteDoctorName, setDeleteDoctorName] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -125,6 +147,8 @@ export default function ClinicsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [activeStatus, setActiveStatus] = useState<"Pending" | "Active" | "Suspended" | "All">("All");
+
+  console.log("Current user:", auth.currentUser);
 
   useEffect(() => {
     const savedCities = localStorage.getItem("selectedCities");
@@ -186,6 +210,7 @@ export default function ClinicsPage() {
     firstName: string;
     middleName: string;
     lastName: string;
+    nameExtension?: string;
     titles: string;
     specializations: string[];
     contact: string;
@@ -193,6 +218,17 @@ export default function ClinicsPage() {
     clinicEntries: ClinicEntry[];
     userType: "Regular" | "Premium";
     status: "Active" | "Pending" | "Suspended";
+    prcImageUrl?: string;
+    prcExpiryDate?: string;
+    clinics?: ClinicRef[];
+
+    // 🟢 new fields
+    prcIdPath?: string;
+    prcIdUploadedAt?: { seconds: number } | null;
+    prcIdUrl?: string;
+    profilePicPath?: string;
+    profilePicUrl?: string;
+    profilePicUploadedAt?: { seconds: number } | null;
   }>({
     firstName: "",
     middleName: "",
@@ -213,19 +249,47 @@ export default function ClinicsPage() {
     ],
     userType: "Regular",
     status: "Active",
+    prcImageUrl: "",
+    prcExpiryDate: "",
+
+    // 🟢 initial values
+    prcIdPath: "",
+    prcIdUploadedAt: null,
+    prcIdUrl: "",
   });
+
+
 
   // ---------- Live list ----------
   useEffect(() => {
     setLoading(true);
     const q = query(collection(db, "doctors"), orderBy("createdAt", "desc"));
-    const unsub = onSnapshot(q, (snap) => {
-      const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as DoctorDoc) }));
+    const unsub = onSnapshot(q, async (snap) => {
+      const list = await Promise.all(
+        snap.docs.map(async (d) => {
+          const data = d.data() as DoctorDoc;
+          let prcIdUrl: string | undefined;
+
+          if (data.prcIdPath) {
+            try {
+              prcIdUrl = await getDownloadURL(ref(storage, data.prcIdPath));
+            } catch (err) {
+              console.error("⚠️ Failed to fetch PRC ID image:", err);
+            }
+          }
+
+          return { id: d.id, ...data, prcIdUrl };
+
+        })
+      );
+
       setDoctors(list);
       setLoading(false);
     });
+
     return () => unsub();
   }, []);
+
 
 
   // ---------- Derived filtered list ----------
@@ -342,6 +406,7 @@ export default function ClinicsPage() {
     setEditingId(null);
     setOpenSection("doctor");
     setAlert(null);
+    setIsEditing(false); // ensure edit mode always resets
   };
 
   // ---------- Duplicate detection ----------
@@ -367,11 +432,15 @@ export default function ClinicsPage() {
     return null;
   };
 
-  const toTitleCase = (str: string) =>
-    str
+  const toTitleCase = (str: string) => {
+    if (!str) return "";
+    return str
       .toLowerCase()
-      .replace(/\b\w/g, (char) => char.toUpperCase())
+      .replace(/(^|\s|[-])\w/g, (match) => match.toUpperCase()) // capitalize after space or hyphen
+      .replace(/'S\b/g, "'s") // fix possessives like "Hermione's"
       .trim();
+  };
+
 
 
   // ---------- Submit ----------
@@ -493,6 +562,12 @@ export default function ClinicsPage() {
       // Get current logged-in staff user
       const user = auth.currentUser;
 
+      // Preserve existing record (for partial edits like profile pic only)
+      const existingDoctor = editingId
+        ? doctors.find((d) => d.id === editingId)
+        : undefined;
+
+
       const doctorPayload: Omit<DoctorDoc, "id"> = {
         firstName: cleanedForm.firstName,
         middleName: cleanedForm.middleName,
@@ -504,6 +579,13 @@ export default function ClinicsPage() {
         clinics: clinicRefs,
         userType: cleanedForm.userType,
         status: cleanedForm.status,
+        prcIdPath: form.prcIdPath || existingDoctor?.prcIdPath || null,
+        prcIdUploadedAt: form.prcIdUploadedAt || existingDoctor?.prcIdUploadedAt || null,
+
+        nameExtension: cleanedForm.nameExtension || "",
+        profilePicPath: form.profilePicPath || existingDoctor?.profilePicPath || null,
+        profilePicUploadedAt: form.profilePicUploadedAt || existingDoctor?.profilePicUploadedAt || null,
+
         ...(editingId
           ? {
             updatedAt: serverTimestamp(),
@@ -566,6 +648,7 @@ export default function ClinicsPage() {
   const handleEdit = (id: string) => {
     const item = doctors.find((d) => d.id === id);
     if (!item) return;
+
     setForm({
       firstName: item.firstName || "",
       middleName: item.middleName || "",
@@ -596,14 +679,123 @@ export default function ClinicsPage() {
             type: "Clinic",
           },
         ],
-
       userType: item.userType || "Regular",
       status: item.status || "Active",
     });
+
+    // ✅ Set existing PRC + new nameExtension
+    setForm((prev) => ({
+      ...prev,
+      prcIdUrl: doctors.find((doc) => doc.id === id)?.prcIdUrl || "",
+      nameExtension: item.nameExtension || "",
+    }));
+
+    // ✅ Load profile picture asynchronously
+    (async () => {
+      if (item.profilePicPath) {
+        try {
+          const url = await getDownloadURL(ref(storage, item.profilePicPath));
+          setForm((prev) => ({
+            ...prev,
+            profilePicUrl: url,
+            profilePicPath: item.profilePicPath || "",
+          }));
+        } catch (err) {
+          console.warn("⚠️ Failed to load profile picture:", err);
+        }
+      } else {
+        setForm((prev) => ({
+          ...prev,
+          profilePicUrl: "",
+          profilePicPath: "",
+        }));
+      }
+    })();
+
     setEditingId(id);
     setIsModalOpen(true);
     setOpenSection("doctor");
   };
+
+  // -------- Handle PRC Replacement (Preview-only until Save) --------
+  const handleReplacePrc = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploadingPrc(true);
+      const storageRef = ref(storage, `prcIDs/temp/${Date.now()}_${file.name}`);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      uploadTask.on(
+        "state_changed",
+        (snap) => setPrcUploadProgress((snap.bytesTransferred / snap.totalBytes) * 100),
+        (err) => {
+          console.error("Upload error:", err);
+          setPrcUploadProgress(null);
+          setUploadingPrc(false);
+        },
+        async () => {
+          const url = await getDownloadURL(uploadTask.snapshot.ref);
+
+          setForm((prev) => ({
+            ...prev,
+            prcIdUrl: url,
+            prcIdPath: uploadTask.snapshot.ref.fullPath,
+            prcIdUploadedAt: { seconds: Math.floor(Date.now() / 1000) },
+          }));
+
+          setPrcUploadProgress(null);
+          setUploadingPrc(false);
+        }
+      );
+    } catch (error) {
+      console.error("Error uploading PRC ID preview:", error);
+      setUploadingPrc(false);
+    }
+  };
+
+
+  // -------- Handle PRC Removal --------
+  const handleRemovePrc = async (doctor?: DoctorDoc) => {
+    if (!confirm("Are you sure you want to remove this PRC ID?")) return;
+
+    // 🧩 Fallback: use doctor from form if parameter is undefined
+    const docId = doctor?.id || editingId;
+    if (!docId) {
+      console.error("❌ No valid doctor ID found for deletion.");
+      return;
+    }
+
+    try {
+      // 🟢 Use prcIdPath (the actual storage reference path)
+      const filePath = doctor?.prcIdPath || form.prcIdPath;
+      if (filePath) {
+        const fileRef = ref(storage, filePath);
+        await deleteObject(fileRef).catch(() => null); // ignore if already deleted
+      }
+
+      // 🟢 Clear PRC-related fields in Firestore
+      await updateDoc(doc(db, "doctors", docId), {
+        prcIdPath: deleteField(),
+        prcIdUploadedAt: deleteField(),
+        prcExpiryDate: deleteField(),
+      });
+
+      // 🟢 Update local UI state
+      setForm((prev) => ({
+        ...prev,
+        prcIdPath: "",
+        prcIdUploadedAt: null,
+        prcIdUrl: "",
+      }));
+
+    } catch (error) {
+      console.error("❌ Error deleting PRC:", error);
+    }
+  };
+
+
 
   const formattedDoctorName = (d: DoctorDoc) =>
     [d.firstName, d.middleName, d.lastName].filter(Boolean).join(" ");
@@ -1044,6 +1236,7 @@ export default function ClinicsPage() {
                   <button
                     onClick={() => {
                       setIsModalOpen(false);
+                      setIsEditing(false); // reset edit mode
                       resetForm();
                     }}
                     className="text-gray-500 hover:text-gray-800 text-lg"
@@ -1074,29 +1267,59 @@ export default function ClinicsPage() {
                   {openSection === "doctor" && (
                     <div className="p-4 pt-0 space-y-3">
                       {/* Name Fields */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        {["firstName", "middleName", "lastName"].map((field, i) => (
-                          <input
-                            key={i}
-                            name={field}
-                            placeholder={
-                              field === "firstName"
-                                ? "First Name"
-                                : field === "middleName"
-                                  ? "Middle Name"
-                                  : "Last Name"
-                            }
-                            className={`capitalize w-full rounded-lg px-3 py-2 text-sm mt-2 focus:ring-2 focus:ring-primary ${editingId && !isEditing
-                              ? "bg-gray-50 border border-gray-200 text-gray-500 cursor-not-allowed"
-                              : "border border-gray-300"
-                              }`}
-                            value={form[field as keyof typeof form] as string}
-                            onChange={handleChange}
-                            disabled={editingId ? !isEditing : false}
-                            required={field !== "middleName"}
-                          />
-                        ))}
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                        <input
+                          name="firstName"
+                          placeholder="First Name"
+                          className={`capitalize w-full rounded-lg px-3 py-2 text-sm mt-2 focus:ring-2 focus:ring-primary ${editingId && !isEditing
+                            ? "bg-gray-50 border border-gray-200 text-gray-500 cursor-not-allowed"
+                            : "border border-gray-300"
+                            }`}
+                          value={form.firstName}
+                          onChange={handleChange}
+                          disabled={editingId ? !isEditing : false}
+                          required
+                        />
+
+                        <input
+                          name="middleName"
+                          placeholder="Middle Name"
+                          className={`capitalize w-full rounded-lg px-3 py-2 text-sm mt-2 focus:ring-2 focus:ring-primary ${editingId && !isEditing
+                            ? "bg-gray-50 border border-gray-200 text-gray-500 cursor-not-allowed"
+                            : "border border-gray-300"
+                            }`}
+                          value={form.middleName}
+                          onChange={handleChange}
+                          disabled={editingId ? !isEditing : false}
+                        />
+
+                        <input
+                          name="lastName"
+                          placeholder="Last Name"
+                          className={`capitalize w-full rounded-lg px-3 py-2 text-sm mt-2 focus:ring-2 focus:ring-primary ${editingId && !isEditing
+                            ? "bg-gray-50 border border-gray-200 text-gray-500 cursor-not-allowed"
+                            : "border border-gray-300"
+                            }`}
+                          value={form.lastName}
+                          onChange={handleChange}
+                          disabled={editingId ? !isEditing : false}
+                          required
+                        />
+
+                        {/* 🟢 New field — optional suffix */}
+                        <input
+                          name="nameExtension"
+                          placeholder="Suffix (Jr., III, etc.)"
+                          className={`uppercase w-full rounded-lg px-3 py-2 text-sm mt-2 focus:ring-2 focus:ring-primary ${editingId && !isEditing
+                            ? "bg-gray-50 border border-gray-200 text-gray-500 cursor-not-allowed"
+                            : "border border-gray-300"
+                            }`}
+                          value={form.nameExtension}
+                          onChange={handleChange}
+                          disabled={editingId ? !isEditing : false}
+                        />
                       </div>
+
 
                       {/* Titles */}
                       <input
@@ -1205,6 +1428,168 @@ export default function ClinicsPage() {
                         onChange={handleChange}
                         disabled={editingId ? !isEditing : false}
                       />
+
+                      {/* 🩺 Profile + PRC ID side by side */}
+                      <div className="mt-4 flex flex-col sm:flex-row gap-6">
+                        {/* Profile Picture */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Profile Picture
+                          </label>
+
+                          {form.profilePicUrl ? (
+                            <div className="relative inline-block">
+                              <img
+                                src={form.profilePicUrl}
+                                alt="Profile Picture"
+                                className="w-24 h-24 rounded-full border border-gray-200 shadow-sm object-cover cursor-pointer hover:opacity-90"
+                                onClick={() => setZoomedImage(form.profilePicUrl ?? "")}
+                              />
+                              <button
+                                onClick={() => setZoomedImage(form.profilePicUrl ?? "")}
+                                className="absolute bottom-1 right-1 bg-white/80 p-1 rounded-full shadow hover:bg-white"
+                              >
+                                <ZoomIn className="w-4 h-4 text-gray-600" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="w-24 h-24 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 text-xs border border-dashed border-gray-300">
+                              No photo
+                            </div>
+                          )}
+
+                          {uploadProgress !== null && (
+                            <div className="w-24 h-1 bg-gray-200 rounded-full mt-1">
+                              <div
+                                className="h-1 bg-green-500 rounded-full transition-all duration-300"
+                                style={{ width: `${uploadProgress}%` }}
+                              />
+                            </div>
+                          )}
+
+
+                          {isEditing && (
+                            <div className="flex gap-4 mt-2 text-xs text-gray-600">
+                              <label className="flex items-center gap-1 hover:text-primary cursor-pointer">
+                                <Pencil className="w-3 h-3" />
+                                {form.profilePicUrl ? "Replace" : "Upload"}
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+                                    const storageRef = ref(storage, `profilePics/temp/${Date.now()}_${file.name}`);
+                                    const uploadTask = uploadBytesResumable(storageRef, file);
+                                    uploadTask.on(
+                                      "state_changed",
+                                      (snap) => setUploadProgress((snap.bytesTransferred / snap.totalBytes) * 100),
+                                      (err) => {
+                                        console.error("Upload error:", err);
+                                        setUploadProgress(null);
+                                      },
+                                      async () => {
+                                        const url = await getDownloadURL(uploadTask.snapshot.ref);
+                                        setForm((prev) => ({
+                                          ...prev,
+                                          profilePicUrl: url,
+                                          profilePicPath: uploadTask.snapshot.ref.fullPath,
+                                          profilePicUploadedAt: { seconds: Math.floor(Date.now() / 1000) },
+                                        }));
+                                        setUploadProgress(null);
+                                      }
+                                    );
+                                  }}
+                                />
+                              </label>
+
+                              {form.profilePicUrl && (
+                                <button
+                                  onClick={() =>
+                                    setForm((prev) => ({
+                                      ...prev,
+                                      profilePicUrl: "",
+                                      profilePicPath: "",
+                                      profilePicUploadedAt: null,
+                                    }))
+                                  }
+                                  className="flex items-center gap-1 hover:text-red-600"
+                                >
+                                  <Trash2 className="w-3 h-3" /> Remove
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* PRC ID */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            PRC ID
+                          </label>
+
+                          <div className="relative inline-block">
+                            {form.prcIdUrl ? (
+                              <>
+                                <img
+                                  src={form.prcIdUrl}
+                                  alt="PRC ID"
+                                  className="w-32 h-auto rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-90"
+                                  onClick={() => setZoomedImage(form.prcIdUrl ?? "")}
+                                />
+                                <button
+                                  onClick={() => setZoomedImage(form.prcIdUrl ?? "")}
+                                  className="absolute bottom-1 right-1 bg-white/80 p-1 rounded-full shadow hover:bg-white"
+                                >
+                                  <ZoomIn className="w-4 h-4 text-gray-600" />
+                                </button>
+                              </>
+                            ) : (
+                              <div className="w-32 h-20 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 text-xs border border-dashed border-gray-300">
+                                No image uploaded
+                              </div>
+                            )}
+                          </div>
+
+                          {prcUploadProgress !== null && (
+                            <div className="w-32 h-1 bg-gray-200 rounded-full mt-1">
+                              <div
+                                className="h-1 bg-green-500 rounded-full transition-all duration-300"
+                                style={{ width: `${prcUploadProgress}%` }}
+                              />
+                            </div>
+                          )}
+
+                          {isEditing && (
+                            <div className="flex gap-4 mt-2 text-xs text-gray-600">
+                              <label className="flex items-center gap-1 hover:text-primary cursor-pointer">
+                                <Pencil className="w-3 h-3" />
+                                {form.prcIdUrl ? "Replace" : "Upload"}
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={handleReplacePrc}
+                                />
+                              </label>
+
+                              {form.prcIdUrl && (
+                                <button
+                                  onClick={() => handleRemovePrc(form as DoctorDoc)}
+                                  className="flex items-center gap-1 hover:text-red-600"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                  Remove
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+
+
                     </div>
                   )}
                 </div>
@@ -1451,6 +1836,29 @@ export default function ClinicsPage() {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+
+      {/* Zoom Modal Overlay */}
+      <AnimatePresence>
+        {zoomedImage && (
+          <motion.div
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[999]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setZoomedImage(null)}
+          >
+            <motion.img
+              src={zoomedImage}
+              alt="Zoomed PRC ID"
+              className="max-h-[90vh] max-w-[90vw] rounded-lg shadow-2xl"
+              initial={{ scale: 0.8 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.8 }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+    </div >
   );
 }
