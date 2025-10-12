@@ -61,13 +61,12 @@ exports.sendStaffInvite = onDocumentCreated(
            width="160"
            style="margin-bottom:8px;">
       <h2 style="font-size:20px;color:#1bae69;margin:0;font-weight:600;">
-        Welcome to HealthLane
+        Welcome, ${userData.firstName || ""}!
       </h2>
     </div>
 
     <!-- Body -->
     <div style="padding: 30px 70px;text-align:left;color:#333;">
-      <p style="font-size:16px;margin-bottom:16px;">Hi ${userData.firstName || ""},</p>
 
       <p style="font-size:15px;line-height:1.6;margin-bottom:28px;">
         You’ve been added as a <b>staff member</b> on <b>HealthLane</b> — a trusted space where clinics and patients connect seamlessly.  
