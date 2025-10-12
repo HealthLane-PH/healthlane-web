@@ -1,29 +1,49 @@
 "use client";
 
 import { useState } from "react";
-import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
+import {
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+} from "firebase/auth";
 import { auth, db } from "@/firebaseConfig";
-import { doc, getDoc } from "firebase/firestore";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react"; // 👈 Add this to your import list (top of file)
+
 
 export default function StaffLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    try {
-      const userCred = await signInWithEmailAndPassword(auth, email, password);
-      const uid = userCred.user.uid;
+    setLoading(true);
 
-      const userDoc = await getDoc(doc(db, "users", uid));
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
+    try {
+      // ✅ 1. Firebase Auth login
+      const userCred = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCred.user;
+
+      // ✅ 2. Query Firestore by email (not UID)
+      const q = query(collection(db, "users"), where("email", "==", email));
+      const querySnap = await getDocs(q);
+
+      if (!querySnap.empty) {
+        const userData = querySnap.docs[0].data();
+
+        // ✅ 3. Role-based redirect
         if (userData.role === "staff" || userData.role === "admin") {
           router.push("/staff/dashboard");
         } else if (userData.role === "parent") {
@@ -36,7 +56,7 @@ export default function StaffLoginPage() {
       }
     } catch (err: unknown) {
       if (err instanceof Error) setError(err.message);
-      else setError("An unknown error occurred");
+      else setError("An unknown error occurred.");
     }
   };
 
@@ -107,10 +127,22 @@ export default function StaffLoginPage() {
 
           <button
             type="submit"
-            className="w-full bg-green-700 hover:bg-green-800 text-white py-2 rounded-lg text-sm sm:text-base transition"
+            disabled={loading}
+            className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg text-sm sm:text-base font-medium transition ${loading
+                ? "bg-[#1bae69]/70 cursor-not-allowed"
+                : "bg-[#1bae69] hover:bg-[#169a5f]"
+              } text-white`}
           >
-            Log In
+            {loading ? (
+              <>
+                <Loader2 className="animate-spin w-5 h-5" />
+                Logging in…
+              </>
+            ) : (
+              "Log In"
+            )}
           </button>
+
         </form>
 
         <div className="mt-4 text-center">

@@ -6,7 +6,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { signOut, User } from "firebase/auth";
 import { auth, db } from "@/firebaseConfig";
 import { useEffect, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
 import {
   HomeIcon,
   Building2Icon,
@@ -29,8 +36,9 @@ const menuItems = [
 
 interface FirestoreUser {
   preferredName?: string;
-  first_name?: string;
+  firstName?: string;
   email?: string;
+   photoURL?: string;
 }
 
 export default function Sidebar({ onClose }: SidebarProps) {
@@ -43,12 +51,26 @@ export default function Sidebar({ onClose }: SidebarProps) {
     const unsubscribe = auth.onAuthStateChanged(async (u) => {
       if (u) {
         setUser(u);
-        const snap = await getDoc(doc(db, "users", u.uid));
-        if (snap.exists()) setUserData(snap.data() as FirestoreUser);
+
+        // ✅ First try fetching by UID (in case any users were saved that way)
+        const userRef = doc(db, "users", u.uid);
+        const snap = await getDoc(userRef);
+
+        if (snap.exists()) {
+          setUserData(snap.data() as FirestoreUser);
+        } else {
+          // ✅ Fallback: fetch by email (covers all auto-ID users)
+          const q = query(collection(db, "users"), where("email", "==", u.email));
+          const querySnap = await getDocs(q);
+          if (!querySnap.empty) {
+            setUserData(querySnap.docs[0].data() as FirestoreUser);
+          }
+        }
       } else {
         router.push("../staff-login");
       }
     });
+
     return () => unsubscribe();
   }, [router]);
 
@@ -78,18 +100,16 @@ export default function Sidebar({ onClose }: SidebarProps) {
               key={item.name}
               href={item.path}
               onClick={onClose}
-              className={`group flex items-center space-x-2 px-3 py-2 rounded-md transition ${
-                pathname === item.path
+              className={`group flex items-center space-x-2 px-3 py-2 rounded-md transition ${pathname === item.path
                   ? "bg-gray-700 text-white"
                   : "text-gray-300 hover:bg-gray-600"
-              }`}
+                }`}
             >
               <span
-                className={`${
-                  pathname === item.path
+                className={`${pathname === item.path
                     ? "text-[#00A651]"
                     : "text-gray-400 group-hover:text-white"
-                } transition-colors`}
+                  } transition-colors`}
               >
                 {item.icon}
               </span>
@@ -103,14 +123,26 @@ export default function Sidebar({ onClose }: SidebarProps) {
       {user && (
         <div className="mt-auto border-t border-gray-700 p-4">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-full bg-gray-500 flex items-center justify-center text-white font-bold">
-              {user.email?.charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <p className="font-medium">
-                {userData?.preferredName || userData?.first_name || "Staff User"}
-              </p>
-              <p className="text-sm text-gray-400">{user.email}</p>
+            <div className="flex items-center space-x-3">
+              {userData?.photoURL ? (
+                <img
+                  src={userData.photoURL}
+                  alt={userData.preferredName || "Profile"}
+                  className="w-10 h-10 rounded-full object-cover border border-gray-600"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center text-white font-semibold">
+                  {(userData?.preferredName?.charAt(0) ||
+                    userData?.firstName?.charAt(0) ||
+                    user?.email?.charAt(0) ||
+                    "?").toUpperCase()}
+                </div>
+              )}
+              <div>
+                <p className="font-medium text-white">
+                  {userData?.preferredName || userData?.firstName || "Staff User"}
+                </p>
+              </div>
             </div>
           </div>
           <button
