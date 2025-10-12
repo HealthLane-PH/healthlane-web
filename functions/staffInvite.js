@@ -84,7 +84,7 @@ exports.sendStaffInvite = onDocumentCreated(
 
       <p style="font-size:14px;color:#777;">
         Once your account is set, you can log in anytime at  
-        <a href="https://healthlane.ph" style="color:#1bae69;text-decoration:none;">healthlane.ph</a>.
+        <a href="https://www.healthlane.ph/staff-login" style="color:#1bae69;text-decoration:none;">healthlane.ph/staff-login</a>.
       </p>
     </div>
 

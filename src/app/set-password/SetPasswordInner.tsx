@@ -14,6 +14,7 @@ import {
   where,
 } from "firebase/firestore";
 import { hashToken } from "../../utils/hashToken";
+import { notify } from "@/components/ToastConfig";
 
 export default function SetPasswordInner() {
   const searchParams = useSearchParams();
@@ -65,13 +66,13 @@ export default function SetPasswordInner() {
     };
 
     if (email && token) verifyToken();
-  }, [email, token, token]);
+  }, [email, token]);
 
   // ✅ Handle password submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
-      setMessage("Passwords do not match.");
+      notify.error("Passwords do not match.");
       return;
     }
     setLoading(true);
@@ -94,14 +95,15 @@ export default function SetPasswordInner() {
 
       // Optional: auto-login
       await signInWithEmailAndPassword(auth, email, password);
-      setMessage("✅ Account created! Redirecting...");
+      notify.success("Account created successfully!");
       setTimeout(() => router.push("/staff/dashboard"), 1500);
+
     } catch (err: unknown) {
       if (err instanceof Error) {
-        console.error(err);
+        notify.error(err.message);
         setMessage(err.message);
       } else {
-        console.error(err);
+        notify.error("An unexpected error occurred.");
         setMessage("An unexpected error occurred.");
       }
     } finally {
@@ -119,8 +121,9 @@ export default function SetPasswordInner() {
 
   if (valid === null)
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-600">Verifying link...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-3" />
+        <p className="text-gray-700 text-lg font-medium">Verifying link...</p>
       </div>
     );
 
@@ -147,7 +150,7 @@ export default function SetPasswordInner() {
             placeholder="Enter new password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
+            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:ring-2 focus:ring-primary focus:border-primary"
             required
           />
           <input
@@ -155,15 +158,23 @@ export default function SetPasswordInner() {
             placeholder="Confirm password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
+            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:ring-2 focus:ring-primary focus:border-primary"
             required
           />
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-primary hover:bg-primaryDark text-white py-2 rounded-md text-sm font-medium"
+            className="w-full bg-primary hover:bg-primaryDark text-white py-3 rounded-lg text-base font-semibold flex justify-center items-center"
           >
-            {loading ? "Setting Password..." : "Set Password"}
+            {loading ? (
+              <div className="flex items-center justify-center space-x-2">
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <span>Setting Password...</span>
+              </div>
+            ) : (
+              "Set Password"
+            )}
+
           </button>
         </form>
       </div>
