@@ -33,7 +33,7 @@ function formatFirestoreDate(date?: Timestamp | FieldValue): string {
 }
 
 type RoleType = "owner" | "admin" | "staff";
-type StatusType = "Active" | "On Leave" | "Resigned" | "Suspended" | "All";
+type StatusType = "Pending" | "Active" | "On Leave" | "Resigned" | "Suspended" | "All";
 
 interface StaffDoc {
   id?: string;
@@ -84,7 +84,7 @@ export default function StaffPage() {
     phone: "",
     role: "staff",
     assignedCity: "",
-    status: "Active",
+    status: "Pending",
     photoURL: "",
   });
 
@@ -159,7 +159,7 @@ export default function StaffPage() {
       phone: "",
       role: "staff",
       assignedCity: "",
-      status: "Active",
+      status: "Pending",
       photoURL: "",
     });
     setEditingId(null);
@@ -817,6 +817,7 @@ export default function StaffPage() {
                   onChange={handleChange}
                   className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary w-full"
                 >
+                  <option>Pending</option>
                   <option>Active</option>
                   <option>On Leave</option>
                   <option>Resigned</option>
